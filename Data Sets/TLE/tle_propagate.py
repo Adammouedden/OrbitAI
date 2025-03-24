@@ -8,7 +8,6 @@ from the TLE data set.
 
 Propagation just means predicting the future position of an object.
 '''
-import json
 
 from sgp4.api import Satrec, jday
 from sgp4.api import WGS72
@@ -193,22 +192,39 @@ def data_formatting(df):
     # Save to CSV
     propagated_df.to_csv("propagated_orbits.csv", index=False)
 
-    # Save the properly formatted propagated data to a CSV!
-    propagated_df.to_csv("propagated_orbits.csv", index=False)
+def save_training_data(df, output_filename="training_data.csv"):
+    '''Saves simplified training data extracted from the "propagated" column.'''
+
+    # Expand the 'propagated' column into separate rows
+    expanded_df = df.explode('propagated').reset_index(drop=True)
+
+    # Expand the dictionary inside 'propagated' into columns
+    propagated_df_expanded = pd.json_normalize(expanded_df['propagated'])
+
+    # Convert timestamp column to datetime
+    propagated_df_expanded['timestamp'] = pd.to_datetime(propagated_df_expanded['timestamp'], utc=True)
+    reference_time = propagated_df_expanded['timestamp'].min()
+
+    # Create a new column "time" (float)
+    propagated_df_expanded['time'] = (propagated_df_expanded['timestamp'] - reference_time).dt.total_seconds()
+
+    # Select required columns
+    training_df = propagated_df_expanded[['time', 'position_x', 'position_y', 'position_z',
+                                          'velocity_x', 'velocity_y', 'velocity_z']]
+
+    # Save the selected columns to CSV
+    training_df.to_csv(output_filename, index=False)
 
 
 # Get the current UTC time using datetime.now() with timezone set to UTC
 start_time = datetime.now(timezone.utc)
 
-#Applies the propagate_orbit function to each row in the dataframe, which is each satellite.
-#We apply it using the wrapper function
-df["propagated"] = df.apply(propagate_row, axis = 1)
-
-#Graphing!
-#graph_positions(df)
-#graph_velocities(df)
-
+df["propagated"] = df.apply(lambda row: propagate_row(row), axis=1)
 data_formatting(df)
+
+print(df.columns)
+save_training_data(df, "training_data.csv")
+
 
 
 
