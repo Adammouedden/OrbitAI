@@ -15,13 +15,14 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 #Load the dataframe
 df = pd.read_csv("tle_data.csv")
 
 
 
-def propagate_orbit(tle1, tle2, start_time, duration=3600, step=60):
+def propagate_orbit(tle1, tle2, start_time, duration=8100, step=30):
     '''
 
     :param tle1: The first line of the TLE
@@ -42,7 +43,7 @@ def propagate_orbit(tle1, tle2, start_time, duration=3600, step=60):
     #Creates a list of timestamps starting from the start time, incremented of "step" seconds until the defined duration.
     #This represents the time points at which the satellite position will be predicted.
     timestamps = []
-    for i in range(0, duration, step):
+    for i in range(0, duration + step, step):
         timestamps.append(start_time + timedelta(seconds=i))
 
     #We will store the positions and velocities at each time step here
@@ -61,6 +62,11 @@ def propagate_orbit(tle1, tle2, start_time, duration=3600, step=60):
         '''
         e, position, velocity = sat.sgp4(julian_date, fraction)
 
+        if any(np.isnan(position)) or any(np.isnan(velocity)):
+            print(f"Bad propagation at {t} for object: {tle1[2:7]} - skipping satellite")
+            return []
+
+
         if (e == 0):
             #Append the current time stamp, position, and velocity
             results.append({
@@ -72,11 +78,13 @@ def propagate_orbit(tle1, tle2, start_time, duration=3600, step=60):
                 "velocity_y": velocity[1],
                 "velocity_z": velocity[2]
             })
-
-
+        if math.isnan(position[0]) or math.isnan(velocity[0]):
+            print(f"NaN detected at time {t}")
     return results
 
 def propagate_row(row):
+    object_id = row["tle_line1"][2:7]
+    print(f"Propagating satellite {object_id}")
     return propagate_orbit(row["tle_line1"], row["tle_line2"], start_time)
 
 def graph_positions(df):
@@ -165,9 +173,21 @@ def parse_data(propagated_data):
     array = np.array([[sv["position_x"], sv["position_y"], sv["position_z"], sv["velocity_x"], sv["velocity_y"], sv["velocity_z"]] for sv in propagated_data])
     return array
 
-def data_formatting(df):
+def data_formatting(df, duration=8100, steps=30):
     # Process each row into a list of sequences
-    sequences = [parse_data(row["propagated"]) for i, row in df.iterrows()]
+
+    expected_timesteps = int(duration / steps) + 1
+
+    sequences = []
+    #Drop any invalid propagated sequences
+    for i, row in df.iterrows():
+        parsed = parse_data(row["propagated"])
+        if parsed.shape == (expected_timesteps, 6):
+            sequences.append(parsed)
+        else:
+            print(f"Dropping incomplete sequence {i}: shape {parsed.shape}")
+
+
     # Convert to (B, T, F) NumPy array
     data_array = np.array(sequences)  # Shape: (B, T, 6)
 
