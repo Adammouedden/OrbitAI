@@ -10,7 +10,7 @@ from sklearn.metrics import mean_squared_error
 from src.Models.TransformerTraining import FEED_FORWARD_DIM
 
 # Hyperparameters
-CSV_PATH = "training_data.csv"
+CSV_PATH = "new_training_data.csv"
 MODEL_PATH = "optimal_weights_orbitai.pth"
 SEQ_LENGTH = 270 #What the encoder was trained on
 PRED_LEN = 180   #a full orbit in LEO
@@ -90,7 +90,7 @@ dataset = OrbitDataset(CSV_PATH, input_len=SEQ_LENGTH, pred_len=PRED_LEN, split=
 delta_t = dataset.normalized_time_step
 
 #Select a sequence
-sample = dataset[15] #Choose first validation sequence
+sample = dataset[0] #Choose first validation sequence
 src = sample['src'].unsqueeze(0).to(device) #[1,270,7]
 tgt = sample['tgt'].unsqueeze(0).to(device) #[1,180,7]
 tgt_y = sample['tgt_y'].unsqueeze(0)        #[1,180,6]
@@ -122,9 +122,9 @@ predictions = np.array(trajectory[1:]) #Discard the seed step
 #----------------------------------------------------------------------------------------------------------
 #4/10/2025 Change #002
 #Inverse transform deltas for ground truth values as well
-print("[PRE] tgt_y_np[:3]:", tgt_y_np[:3])  # Should be tiny (~0.001)
+#print("[PRE] tgt_y_np[:3]:", tgt_y_np[:3])  # Should be tiny (~0.001)
 true_deltas_unscaled = dataset.inverse_transform_deltas(tgt_y_np)
-print("[POST] true_deltas_unscaled[:3]:", true_deltas_unscaled[:3])  # Should now be large (10s to 100s)
+#print("[POST] true_deltas_unscaled[:3]:", true_deltas_unscaled[:3])  # Should now be large (10s to 100s)
 
 # Extract normalized values
 initial_raw = sample['tgt'][0].numpy()
@@ -148,19 +148,21 @@ ground_truth = np.array(ground_truth[1:])  # drop initial seed
 #----------------------------------------------------------------------------------------------------------
 
 
-print("Ground Truth delta max (position):", np.max(np.abs(true_deltas_unscaled[:, :3])))
 
 
 #Debugging
-print("Predicted (first 3 rows):\n", predictions[:3])
-print("Ground Truth (first 3 rows):\n", ground_truth[:3])
+print("Initial Position (after inverse):", initial_position)
+print("First Delta (position):", true_deltas_unscaled[0, :3])
+print("First Step (expected):", initial_position + true_deltas_unscaled[0, :3])
+
 
 #Plot the orbits
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
 
+#Trajectory Plotting
 ax.plot(ground_truth[:, 0], ground_truth[:, 1], ground_truth[:, 2], label='Ground Truth', linewidth=2)
-ax.plot(predictions[:, 0], predictions[:, 1], predictions[:, 2], label='Predicted', linestyle='--')
+#ax.plot(predictions[:, 0], predictions[:, 1], predictions[:, 2], label='Predicted', linestyle='--')
 
 ax.set_xlabel('X Position (km)')
 ax.set_ylabel('Y Position (km)')
@@ -169,8 +171,18 @@ ax.set_title('OrbitAI: Predicted vs Ground Truth Orbit')
 ax.legend()
 
 
+#Per-step delta error plotting
+'''plt.plot(true_deltas_unscaled[:, 0], label='True ΔX')
+plt.plot(predicted_deltas_unscaled[:, 0], label='Predicted ΔX')
+plt.title("Delta Position X over Time")
+plt.legend()
+plt.show()'''
+
+
+
 plt.show()
 
+'''
 for i, label in enumerate(['X', 'Y', 'Z']):
     rmse = np.sqrt(mean_squared_error(ground_truth[:, i], predictions[:, i]))
     print(f"Position {label} RMSE: {rmse:.4f} km")
@@ -178,5 +190,8 @@ for i, label in enumerate(['X', 'Y', 'Z']):
 for i, label in enumerate(['Vx', 'Vy', 'Vz']):
     rmse = np.sqrt(mean_squared_error(ground_truth[:, i + 3], predictions[:, i + 3]))
     print(f"Velocity {label} RMSE: {rmse:.4f} km/s")
+'''
 
+print(f"Ground Truth Values for Sat 1: {ground_truth[0]}\n, {ground_truth[1]}\n, {ground_truth[2]}")
+print(f"Predicted Values for Sat 1: {predictions[0]}\n, {predictions[1]}\n, {predictions[2]}")
 

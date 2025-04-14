@@ -11,6 +11,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import time
 
+torch.cuda.empty_cache()
+
 
 INPUT_DIM = 7          #The dimensions/neurons for the input layer: time, pos_x, pos_y, pos_z, vel_x, vel_y, vel_z
 EMBED_DIM = 128        #Embedding Dimension for input vectors.
@@ -19,7 +21,7 @@ NUM_LAYERS = 4         #Number of encoder layers
 FEED_FORWARD_DIM = 256 #Size of feedforward layers within the Transformer's MLP
 OUTPUT_DIM = 6         #Predicting the 6 dimensional outputs (the next state vectors)
 LEARNING_RATE = 0.00001  #The learning rate for the optimizer function
-BATCH_SIZE = 32        #Number of sequences per batch
+BATCH_SIZE = 16       #Number of sequences per batch
 EPOCHS = 50            #Number of training iterations
 DROPOUT = 0.2          #Overfitting prevention
 SEQ_LENGTH = 270        #Length of the input sequences, 270 = 8100/30 = PropagationDuration/steps
@@ -122,7 +124,7 @@ def evaluate(model, dataloader, criterion, device):
 
 
 class OrbitDataset(Dataset):
-    def __init__(self, csv_path, input_len = 270, pred_len = 2, val_ratio = 0.2, split='train'):
+    def __init__(self, csv_path, input_len = 270, pred_len = 180, val_ratio = 0.2, split='train'):
         super().__init__()
         self.input_len = input_len
         self.pred_len = pred_len
@@ -160,6 +162,8 @@ class OrbitDataset(Dataset):
         #Compute the state vector deltas and normalize them
         position_deltas = self.position[1:] - self.position[:-1]
         velocity_deltas = self.velocity[1:] - self.velocity[:-1]
+
+        #print("Raw position units (first):", self.position[:3])
 
         self.delta_position_scaler = StandardScaler()
         self.delta_velocity_scaler = StandardScaler()
@@ -214,7 +218,6 @@ class OrbitDataset(Dataset):
         }
 
     def inverse_transform_deltas(self, delta_prediction):
-        print("\n[DEBUG] Raw input delta_prediction[:3]:", delta_prediction[:3])
 
         #Reverse scaling of predicted state vectors, un-normalized them
         delta_position = delta_prediction[:, :3]
@@ -223,12 +226,6 @@ class OrbitDataset(Dataset):
         #4/10/2025 Change #002 Inverse transform deltas instead of raw state vectors
         position_unscaled = self.delta_position_scaler.inverse_transform(delta_position)
         velocity_unscaled = self.delta_velocity_scaler.inverse_transform(delta_velocity)
-
-        print("[DEBUG] Unscaled position deltas[:3]:", position_unscaled[:3])
-        print("[DEBUG] position scaler std:", self.delta_position_scaler.scale_)
-        print("[DEBUG] Mean:", self.delta_position_scaler.mean_)
-
-
         return np.hstack([position_unscaled, velocity_unscaled])
 
     def get_raw_ground_truth(self, sat_id, offset, input_len, steps):
@@ -256,8 +253,8 @@ if __name__ == "__main__":
     device = torch.device('cuda')
 
     #Load Dataset
-    train_dataset = OrbitDataset("training_data.csv", split = 'train')
-    val_dataset = OrbitDataset("training_data.csv", split = 'val')
+    train_dataset = OrbitDataset("new_training_data.csv", split = 'train')
+    val_dataset = OrbitDataset("new_training_data.csv", split = 'val')
 
     train_loader = DataLoader(train_dataset, batch_size = BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)

@@ -19,7 +19,8 @@ import math
 
 #Load the dataframe
 df = pd.read_csv("tle_data.csv")
-
+df["tle_line1"] = df["tle_line1"].str.strip()
+df["tle_line2"] = df["tle_line2"].str.strip()
 
 
 def propagate_orbit(tle1, tle2, start_time, duration=8100, step=30):
@@ -63,7 +64,7 @@ def propagate_orbit(tle1, tle2, start_time, duration=8100, step=30):
         e, position, velocity = sat.sgp4(julian_date, fraction)
 
         if any(np.isnan(position)) or any(np.isnan(velocity)):
-            print(f"Bad propagation at {t} for object: {tle1[2:7]} - skipping satellite")
+            print(f"[SGP4] Bad propagation at {t} for TLE: {tle1.strip()} - skipping")
             return []
 
 
@@ -240,10 +241,11 @@ def save_training_data(df, output_filename="training_data.csv"):
 start_time = datetime.now(timezone.utc)
 
 df["propagated"] = df.apply(lambda row: propagate_row(row), axis=1)
+
 data_formatting(df)
 
 print(df.columns)
-save_training_data(df, "training_data.csv")
+save_training_data(df, "../../src/Models/new_training_data.csv")
 
 
 
