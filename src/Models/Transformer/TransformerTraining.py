@@ -253,8 +253,8 @@ if __name__ == "__main__":
     device = torch.device('cuda')
 
     #Load Dataset
-    train_dataset = OrbitDataset("new_training_data.csv", split = 'train')
-    val_dataset = OrbitDataset("new_training_data.csv", split = 'val')
+    train_dataset = OrbitDataset("new_training_data.csv", split ='train')
+    val_dataset = OrbitDataset("new_training_data.csv", split ='val')
 
     train_loader = DataLoader(train_dataset, batch_size = BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)

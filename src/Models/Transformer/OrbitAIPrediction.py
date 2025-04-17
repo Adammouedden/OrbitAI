@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-from src.Models.TransformerTraining import FEED_FORWARD_DIM
+from src.Models.Transformer.TransformerTraining import FEED_FORWARD_DIM
 
 # Hyperparameters
 CSV_PATH = "new_training_data.csv"

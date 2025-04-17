@@ -245,7 +245,7 @@ df["propagated"] = df.apply(lambda row: propagate_row(row), axis=1)
 data_formatting(df)
 
 print(df.columns)
-save_training_data(df, "../../src/Models/new_training_data.csv")
+save_training_data(df, "../../src/Models/Transformer/new_training_data.csv")
 
 
 
